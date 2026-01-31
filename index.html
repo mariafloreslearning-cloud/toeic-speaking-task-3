@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TOEIC Speaking - Task 1</title>
+  <title>TOEIC Speaking - Task 3 Recorder</title>
 
   <style>
     :root{
@@ -62,7 +62,6 @@
       max-width: 72ch;
     }
 
-    /* Prompt box (same feeling as Task 2) */
     .prompt{
       margin: 14px 0 18px;
       background:#f7f8fa;
@@ -72,28 +71,14 @@
       padding: 14px 14px;
     }
     .prompt h2{
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       font-size: 14px;
       color: #111827;
       display:flex;
       align-items:center;
       gap:8px;
-      font-weight: 700;
     }
 
-    /* "Text to read aloud" in italic (your request) */
-    .promptLabel{
-    }
-
-    .promptBody{
-      margin: 0;
-      color:#111827;
-      font-size: 14px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-
-    /* Bottom instruction line (same vibe as Task 2) */
     .instruction{
       margin-top: 14px;
       font-size: 13px;
@@ -156,17 +141,31 @@
     .btnDownload{ background:#0f172a; color:#fff; }
     .btnDownload:hover{ background:#111827; }
 
+    .btnReturn{
+      background: var(--primary);
+      color:#fff;
+      padding: 12px 18px;
+      font-weight: 700;
+      box-shadow: 0 10px 22px rgba(37,99,235,.18);
+    }
+    .btnReturn:hover{ background: var(--primaryHover); }
+
     audio{
       width: 100%;
       margin-top: 10px;
     }
 
-    .downloadRow{
+    .bottomBar{
       display:flex;
       gap:10px;
       flex-wrap:wrap;
-      margin-top: 10px;
       align-items:center;
+      margin-top: 10px;
+    }
+    .bottomBar .spacer{ flex:1; }
+    @media (max-width: 520px){
+      .bottomBar button{ width:100%; }
+      .bottomBar .spacer{ display:none; }
     }
 
     .hint{
@@ -243,7 +242,6 @@
     }
     .dangerLink:hover{ background:#ffecec; }
 
-    /* PRO modal overlay */
     .overlay{
       position:fixed;
       inset:0;
@@ -290,27 +288,23 @@
     <div class="card">
       <h1 class="title">🎙️ Record your voice</h1>
       <div class="subtitle">
-        Click <strong>Start recording</strong>, then read the text below aloud.
+        Click <strong>Start recording</strong>, then answer the question you heard.
       </div>
 
-      <div class="prompt" id="promptBox">
-  <h2>🔊 Listen to the question</h2>
+      <!-- ✅ Prompt box (audio question) -->
+      <div class="prompt">
+        <h2>🔊 Listen to the question</h2>
 
-        <br>
+        <!-- ✅ Put your mp3 in the same repo as index.html -->
+        <audio controls preload="metadata">
+          <source src="toeic-speaking-task-3.mp3" type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
 
-  <audio controls>
-  <source src="https://mariafloreslearning-cloud.github.io/toeic-speaking-task-3/toeic-speaking-task-3.mp3" type="audio/mpeg">
-  Your browser does not support the audio element.
-</audio>
-
-        <br>
-        <br>
-
-  <p class="instruction">
-    You will hear the question. You will then have 15 seconds to read the text aloud.
-  </p>
-</div>
-
+        <p class="instruction">
+          You will hear the question. When the recording starts, answer within the time limit (15 seconds).
+        </p>
+      </div>
 
       <div class="meta">
         <div class="pill"><span>⏱️</span><span class="timer" id="timer">00:00</span></div>
@@ -326,9 +320,10 @@
 
       <audio id="player" controls></audio>
 
-      <div class="downloadRow">
+      <div class="bottomBar">
         <button id="download" class="btnDownload" disabled>⬇️ Download this take</button>
-        <button id="returnBtn" class="btnGhost">⬅️ Return to the module</button>
+        <div class="spacer"></div>
+        <button id="returnBtn" class="btnReturn">↩️ Return to the module</button>
       </div>
 
       <div class="hint">
@@ -357,6 +352,64 @@
   </div>
 
   <script>
+    /***********************
+     * IndexedDB persistence
+     ***********************/
+    const DB_NAME = "toeic_recorder_db_task3";
+    const DB_VERSION = 1;
+    const STORE = "takes";
+
+    function openDB(){
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if(!db.objectStoreNames.contains(STORE)){
+            const store = db.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+            store.createIndex("createdAt", "createdAt");
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function addTakeToDB({ blob, durationSec }){
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+        const req = store.add({ blob, durationSec, createdAt: Date.now() });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function getAllTakesFromDB(){
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const store = tx.objectStore(STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deleteTakeFromDB(id){
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+        const req = store.delete(id);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    /***********************
+     * Recorder UI
+     ***********************/
     const startBtn = document.getElementById("start");
     const stopBtn  = document.getElementById("stop");
     const resetBtn = document.getElementById("reset");
@@ -454,7 +507,71 @@
       if(e.target === overlay) hideOverlay();
     });
 
+    function renderSavedTake({ id, blob, durationSec }, takeNumber){
+      const savedUrl = URL.createObjectURL(blob);
+
+      const item = document.createElement("div");
+      item.className = "savedItem";
+      item.dataset.id = String(id);
+
+      const top = document.createElement("div");
+      top.className = "savedTop";
+
+      const label = document.createElement("div");
+      label.className = "savedLabel";
+      label.innerHTML = `<strong>Take ${takeNumber}</strong> <span class="tag">• ${durationSec}s</span>`;
+
+      const actions = document.createElement("div");
+      actions.className = "savedActions";
+
+      const downloadBtn = document.createElement("a");
+      downloadBtn.className = "linkBtn";
+      downloadBtn.href = savedUrl;
+      downloadBtn.download = `task3-take-${takeNumber}.webm`;
+      downloadBtn.textContent = "⬇️ Download";
+
+      const removeBtn = document.createElement("a");
+      removeBtn.href = "#";
+      removeBtn.className = "linkBtn dangerLink";
+      removeBtn.textContent = "🗑️ Remove";
+      removeBtn.onclick = async (e) => {
+        e.preventDefault();
+        await deleteTakeFromDB(id);
+        URL.revokeObjectURL(savedUrl);
+        item.remove();
+        statusEl.textContent = "Take removed.";
+        await loadSavedTakes(); // renumber
+      };
+
+      actions.appendChild(downloadBtn);
+      actions.appendChild(removeBtn);
+
+      top.appendChild(label);
+      top.appendChild(actions);
+
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = savedUrl;
+
+      item.appendChild(top);
+      item.appendChild(audio);
+
+      return item;
+    }
+
+    async function loadSavedTakes(){
+      savedList.innerHTML = "";
+      const takes = await getAllTakesFromDB();
+      takes.sort((a,b) => a.createdAt - b.createdAt); // Take 1 at top
+
+      takes.forEach((t, idx) => {
+        savedList.appendChild(renderSavedTake(t, idx + 1));
+      });
+    }
+
+    // Init
     resetUI();
+    loadSavedTakes().catch(() => {});
 
     startBtn.onclick = async () => {
       try{
@@ -536,7 +653,7 @@
 
     dlBtn.onclick = () => {
       if(!currentBlob) return;
-      const filename = `speaking-take-${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.webm`;
+      const filename = `task3-take-${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.webm`;
       downloadBlob(currentBlob, filename);
     };
 
@@ -552,60 +669,21 @@
       }, 250);
     });
 
-    keepBtn.onclick = () => {
+    keepBtn.onclick = async () => {
       if(!currentBlob) return;
 
-      const takeNumber = savedList.children.length + 1;
-      const duration = seconds;
-      const savedUrl = URL.createObjectURL(currentBlob);
+      try{
+        statusEl.textContent = "Saving take…";
+        await addTakeToDB({ blob: currentBlob, durationSec: seconds });
+        await loadSavedTakes();
 
-      const item = document.createElement("div");
-      item.className = "savedItem";
-
-      const top = document.createElement("div");
-      top.className = "savedTop";
-
-      const label = document.createElement("div");
-      label.className = "savedLabel";
-      label.innerHTML = `<strong>Take ${takeNumber}</strong> <span class="tag">• ${duration}s</span>`;
-
-      const actions = document.createElement("div");
-      actions.className = "savedActions";
-
-      const downloadBtn = document.createElement("a");
-      downloadBtn.className = "linkBtn";
-      downloadBtn.href = savedUrl;
-      downloadBtn.download = `speaking-take-${takeNumber}.webm`;
-      downloadBtn.textContent = "⬇️ Download";
-
-      const removeBtn = document.createElement("a");
-      removeBtn.href = "#";
-      removeBtn.className = "linkBtn dangerLink";
-      removeBtn.textContent = "🗑️ Remove";
-      removeBtn.onclick = (e) => {
-        e.preventDefault();
-        URL.revokeObjectURL(savedUrl);
-        item.remove();
-        statusEl.textContent = "Take removed.";
-      };
-
-      actions.appendChild(downloadBtn);
-      actions.appendChild(removeBtn);
-
-      top.appendChild(label);
-      top.appendChild(actions);
-
-      const audio = document.createElement("audio");
-      audio.controls = true;
-      audio.src = savedUrl;
-
-      item.appendChild(top);
-      item.appendChild(audio);
-
-      savedList.appendChild(item);
-
-      statusEl.textContent = `Saved Take ${takeNumber}. You can record another one to compare.`;
-      keepBtn.disabled = true;
+        statusEl.textContent = "Saved. You can record another one to compare.";
+        keepBtn.disabled = true;
+      } catch(err){
+        console.error(err);
+        statusEl.textContent = "Save failed (storage blocked?)";
+        alert("Saving failed. Your browser may be blocking storage for this page.");
+      }
     };
   </script>
 </body>
