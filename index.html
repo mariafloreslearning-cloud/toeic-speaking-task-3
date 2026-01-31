@@ -293,22 +293,19 @@
         Click <strong>Start recording</strong>, then read the text below aloud.
       </div>
 
-      <!-- ✅ Task 1 prompt box aligned with Task 2 -->
       <div class="prompt" id="promptBox">
-        <h2>📄 <span class="promptLabel">Text to read aloud</span></h2>
+  <h2>🔊 Listen to the question</h2>
 
-        <p class="promptBody" id="promptText" style="font-style: italic;">
-Please note that the office will be closed on Friday afternoon for scheduled maintenance.
-Employees are asked to complete any urgent tasks before noon.
-</p>
+  <audio controls style="width:100%; margin: 8px 0 12px;">
+    <source src="task1-example-question.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
 
-       <br> 
+  <p class="instruction">
+    You have 45 seconds to prepare. When the recording starts, read the text aloud within the time limit (45 seconds).
+  </p>
+</div>
 
-        <!-- ✅ Same style as Task 2 instruction line -->
-        <div class="instruction">
-          You have 45 seconds to prepare. You will then have 45 seconds to read the text aloud.
-        </div>
-      </div>
 
       <div class="meta">
         <div class="pill"><span>⏱️</span><span class="timer" id="timer">00:00</span></div>
